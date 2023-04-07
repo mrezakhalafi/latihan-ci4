@@ -1,0 +1,345 @@
+===================================================================================================================================================
+
+Note CI 4
+Perbedaan dengan CI 3
+M Reza Khalafi Notes 
+08/02/2023
+
+===================================================================================================================================================
+
+<?= 1. View ?>
+
+    $this->load->view('home')
+    menjadi
+    return view('home') = kalo 1
+    dan
+    echo view('home') = kalo banyak
+
+<?= 2. Fitur baru Routes ?>
+
+    $routes->get('/', 'Pages::index') = untuk root, tampilkan controller pages, method index
+    $routes->get('/coba/(:any)', 'Coba::index/$1') = Untuk fungsi root jika ada input masuk ke parameter (Bukan dibaca sebagai method)
+    $routes->get('/coba/add', 'Homepage::add') = Jika fungsi di atas ditambahkan, maka method lain akan mati, harus diaktifkan manual
+    $routes->get('/productadmin', 'Admin\ProductAdmin::index'); = Jika controller dimasukan ke dalam folder, + di dalamnya ada penyesuaian use & namespace
+    bisa nyalakan manual kalau tidak kepanggil controllernya 
+    $routes->setAutoRoute(true);
+
+<?= 3. Fitur baru Template Engine ?>
+
+    $this->load->view('template/header')
+    $this->load->view('index')
+    $this->load->view('template/footer')
+    menjadi
+    $this->renderSection('content') = pada file template header & footer, dan di baris lokasi yang ingin berubah2
+    dan
+    $this->extend('layout/template') = pada file index/about/contact di bagian paling atas
+    dan
+    $this->section('') = pada file index/about/contact di bagian awal masuk code
+    $this->endSection() = pada file index/about/contact di bagian akhir code
+    $this->include('navbar') = untuk pemisahan file seperti navbar, dipanggil dengan ini
+
+<?= 4. Buat Model ?>
+
+    buat dengan nama userModel.php isinya class User
+    deklarasikan protected $table = 'user' = nama tabelnya (Wajib) (Yang lain bisa liat di dokumentasi)
+    buat juga nama method tidak wajib index, menyesuaikan untuk dipanggil di controller
+
+<?= 5. Mengambil data dari database ?>
+
+    return $this->findAll() = jika langsung di model
+    $this->where(['id' => $id])->first() = jika dengan where dan langsung di model
+    return $this->komikModel()->findAll() = jika di controller
+    return $this->komikModel()-where(['id' => $id])->first() = jika dengan where dan di controller
+
+<?= 6. Deklarasi model di controller ?>
+
+    buat variabel wajib
+    protected $komikModel;
+    buat construct wajib
+    public function __construct()
+    {
+        $this->komikModel = new KomikModel();
+    }
+    di bawah tinggal panggil model kemudian fungsinya
+    $this->komikModel->getKomik();
+
+<?= 7. Fitur baru security form ?>
+
+    csrf_field() = taruh di bawah tag form (wajib) untuk safety form hanya dapat di input melalui form itu saja
+
+<?= 8. Attribut get form ?>
+
+    $this->request->getPost('judul') = mengambil data post
+    $this->request->getGet('judul') = mengambil data get
+    $this->request->getVar('judul') = mengambil data post & get, jika di kosongkan dalam kurung = semua
+
+<?= 9. Fitur baru slug ?>
+
+    url_title($this->request->getVar('judul'), '-', true) = merubah Naruto Aja menjadi naruto-aja (Untuk link /detail)
+
+<?= 10. Fungsi save ?>
+
+    $this->komikModel->save([
+        'judul' => $this->request->getVar('judul')
+    ]);
+    atau
+    $komik = [
+        'judul' => $this->request->getVar('judul'),
+    ];
+    $this->komikModel->save($komik);
+    bisa pake ->insert() juga, save() untuk update jika primary di insert kembali
+
+<?= 11.Fungsi redirect ?>
+
+    return redirect()->to('komik')
+
+<?= 12. Komponen di model pada saat Insert ?>
+
+    protected $allowedFields = ['judul', 'slug', 'penulis', 'penerbit', 'sampul'] = Wajib untuk insert field yang boleh di isi
+    protected $useTimestamps = true = Wajib jika memiliki created_at dan updated_at yang ingin auto di isi CI
+
+<?= 13. Mekanisme flashdata ?>
+
+    session()->setFlashdata('pesan', 'Data berhasil ditambahkan.') = Set session di controller
+    dan untuk di view nya gunakan
+    if (session()->getFlashdata('pesan'))
+        div
+            echo session()->getFlashdata('pesan')
+        div
+    endif
+
+<?= 14. Handle error jika data tidak ditemukan ?>
+
+    if (empty($data['komik'])) {
+        throw new \CodeIgniter\Exceptions\PageNotFoundException('Judul komik tidak ditemukan');
+    }
+
+<?= 15. Redirect tapi malah muncul index.php ?>
+
+    tambahkan base_url('komik/create');
+
+<?= 16. Deklarasi validation ?>
+
+    tulis sebelum sesi insert
+    if (!$this->validate(
+    [
+        'Judul' => [
+            'rules' => 'required|is_unique[komik.Judul]',
+            'errors' => [
+                'required' => '{field} harus diisi.',
+                'is_unique' => '{field} sudah terdaftar.'
+            ]
+        ]
+    ] {
+        // Jika validasi tidak memenuhi
+    }
+    dan jika tidak memenuhi simpan error di session sebelum di redirect
+    $validation = \Config\Services::validation()
+    session()->setFlashdata('validation', $validation)
+
+<?= 17. Memanggil library validasi untuk show error ?>
+
+    taruh di data
+    'validation' => session()->getFlashdata('validation')
+    beberapa fungsi di view 
+    $validation->listErrors() = menampilkan semua error 
+    $validation->hasError('Judul') = pengecekan single error 
+    $validation->getError('Judul') = menampilkan pesan error, otomatis jika hasError memenuhi syarat 
+
+<?= 18. Value tidak hilang ketika gagal validasi ?>
+
+    tambahkan ->withInput() pada Redirect
+    return redirect()->to(base_url('komik/create'))->withInput()
+    lalu panggil pada value 
+    old('judul')
+
+<?= 19. Delete data ?>
+
+    bisa langsung
+    $this->komikModel->delete($id) = di controller 
+    $this->delete($id) = di modal
+    atau 
+    form action="/komik/echo $komik['id']" method="POST"
+        csrf_field()
+        input type="hidden" name="_method" value="DELETE"
+        button class="btn btn-danger" type="submit">Delete button
+    form = pada view 
+    dan
+    $routes->delete('/komik/(:num)', 'Komik::delete/$1') = pada Routes
+
+<?= 20. Edit data ?>
+
+    sama persis kodenya sama dengan insert, tapi gunakan save()
+
+<?= 21. Validasi edit data ?>
+
+    sama dengan insert tapi khusus judul ditambahkan agar tidak terdeteksi sebagai non unique
+    $komikLama = $this->komikModel->getKomik($this->request->getVar('Slug'));
+    if ($komikLama['judul'] == $this->request->getVar('Judul')) {
+        $rule_judul = 'required';
+    } else {
+        $rule_judul = 'required|is_unique[komik.Judul]';
+    }
+
+<?= 22. Validasi Upload file ?>
+
+    'Sampul' => [
+        'rules' => 'uploaded[Sampul]|max_size[Sampul,1024]|is_image[Sampul]|mime_in[Sampul,image/jpg,image/jpeg,image/png]'
+    ]
+
+<?= 23. Upload file ?>
+
+    $fileSampul = $this->request->getFile('Sampul') = mengambil dari input
+    $fileSampul->move('images', $namaSampulBaru) = memindahkan ke folder dan parameter ke 2 jika ingin random name
+    $namaSampul = $fileSampul->getName() = mengambil nama file
+    $namaSampulBaru = $fileSampul->getRandomName() = merubah nama file 
+
+<?= 24. Handle file kalo ga upload file ?>
+
+    if ($fileSampul->getError() == 4) {
+        $namaSampulBaru = 'default.svg';
+    } else {
+        $namaSampulBaru = $fileSampul->getRandomName();
+        $fileSampul->move('images', $namaSampulBaru);
+    }
+
+<?= 25. Delete file dari server ?>
+
+    $komik = $this->komikModel->find($id) = mengambil row berdasarkan primary key ID
+    if ($komik['sampul'] != 'default.svg') {
+        unlink('images/' . $komik['sampul']) = hapus file jika bukan default
+    }  
+
+<?= 26. Command CMD Migrate & Spark ?>
+
+    php spark make:migration Orang = membuat file di App/Database/Migrate
+    php spark migrate = memindahkan / mengupload ke DB
+    php spark migrate:rollback = menghapus database
+    php spark make:spark TestSeeder = membuat file di App/Database/Seeds
+    php spark db:seed OrangSeeder = menginsert data ke DB
+
+<?= 27. Struktur file Migrate ?>
+
+    ambil struktur dari dokumentasi di website
+    public function up()
+    {
+        $this->forge->addField([
+            'id' => [
+                'type'           => 'INT',
+                'constraint'     => 5,
+                'unsigned'       => true,
+                'auto_increment' => true,
+            ]
+        ]);
+        $this->forge->addKey('id', true);
+        $this->forge->createTable('orang');
+    }
+    public function down()
+    {
+        $this->forge->dropTable('orang');
+    }
+
+<?= 28. Fungsi Seeder ?>
+
+    php spark make:spark TestSeeder
+    ambil struktur dari dokumentasi di website
+    namespace App\Database\Seeds;
+    use CodeIgniter\Database\Seeder;
+    use CodeIgniter\I18n\Time;
+    class OrangSeeder extends Seeder
+    {
+        public function run()
+        {
+            $data = [
+                'nama' => 'Reza',
+                'alamat'    => 'Cipinang Elok 1'
+            ];
+            $this->db->query('INSERT INTO orang (nama, alamat, created_at, updated_at) VALUES(:nama:, :alamat:, :created_at:, :updated_at:)', $data); = Bisa gini atau
+            $this->db->table('orang')->insert($data) = insert single 
+            $this->db->table('orang')->insertBatch($data) = insert multiple/ insert batch
+        }
+    }
+
+<?= 29. Fungsi Faker ?>
+
+    deklarasi di dalam file seeder
+    $faker = \Faker\Factory::create('id_ID') = isi parameter untuk ranah negara
+    $faker->name = generate name random 
+    bisa di loop for di section insert 
+
+<?= 30. Created_at dengan Seeder dan Faker ?>  
+
+    tulis di controller
+    use CodeIgniter\I18n\Time;
+    Time::now() = waktu saat ini 
+    Time::createFromTimestamp($faker->unixTime()) = waktu random dari faker dimasukan ke dalam seeder
+    $data = [
+        'created_at' => Time::now()
+    ]
+
+<?= 31. Fungsi Pagination ?>  
+
+    tambahkan di data controller 
+    'hewan' => $this->hewan->paginate(10, 'hewan') = jumlah nomer dan nama tabel di database 
+    'pager' => $this->hewan->pager
+    tambahkan di view 
+    $pager->links('hewan') = parameter nama tabel
+
+<?= 32. Custom Pagination ?>  
+
+    modifikasi di App\Config\Pager.php
+    public array $templates = [
+        'default_full'   => 'CodeIgniter\Pager\Views\default_full' = nama template, dan lokasi view desain pagination bebas
+    ]
+    buat view baru dengan copas kode dari dokumentasi section Pagination > Creating the View
+    tambahkan class="page-item" pada li dan class="page-link" pada tag a jika ingin model bootstrap
+    modif di view data
+    $pager->links('hewan', 'hewan_template') = dengan parameter kedua nama template yang dibuat tadi
+
+<?= 33. Custom Pagination Number ?>  
+
+    tulis di controller 
+    $currentPage = $this->request->getVar('page_hewan') ? $this->request->getVar('page_hewan') : '1'
+    yaitu mengambil $_GET di atas dan jika tidak ada berarti default 1
+    ganti $i = 1 di view 
+    $i = 1 + (10 * ($currentPage - 1)) = 10 menyesuaikan banyak data tampil per page
+
+<?= 34. Search Data ?>
+
+    buat input dan button search yang dibungkus oleh form 
+    form method="POST" action="" = karena mengarah ke fungsi diri sendiri 
+    tambahkan di controller 
+    $keyword = $this->request->getVar('keyword');
+    if ($keyword) {
+        $hewan = $this->hewan->search($keyword);
+    } else {
+        $hewan = $this->hewan;
+    }
+    tambahkan di modal 
+    $search = $this->get_where(['nama_hewan', $keyword]) = spesific search
+    $search = $this->table('hewan')->like('nama_hewan', $keyword = single like search
+    $search = $this->table('hewan')->like('nama_hewan', $keyword)->orLike('harga_hewan', $keyword) = multiple like search
+
+<?= 35. Hosting Server ?>
+
+    format .zip 1 folder yang ada di htdocs 
+    upload ke root lalu extract 
+    pisahkan folder public, jika ada public_html pindahkan semua kesitu
+    buka index.php di public lalu ubah require FCPATH . '../app/Config/Paths.php' = menyesuaikan path folder App 
+    buka app/config/App.php lalu ubah  public string $baseURL = '' = alamat hosting dengan https://
+    buka .env lalu ubah base URL, dan databasenya 
+    jika ada data pada DB jangan lupa untuk create DB, assign user ke DB, lalu import SQL 
+
+<?= 36. (Improvement) Join Tabel ?>
+
+    tulis pada modal    
+    $this->join('owner', 'owner.id_hewan = hewan.id')
+    sebelum
+    $this->findAll() = untuk semua 
+    atau 
+    $this->paginate(10,'hewan_pagination') = dengan pagination
+    atau 
+    $this->like('nama_hewan', $keyword)->orLike('harga_hewan', $keyword)->orLike('nama_owner', $keyword)
+    $hewan = $this->paginate(10, 'hewan') = dengan pencarian
+
+===================================================================================================================================================
